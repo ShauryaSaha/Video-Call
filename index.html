@@ -1,0 +1,135 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Calling Website</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    video {
+      width: 50%;
+      border: 2px solid #333;
+      border-radius: 8px;
+    }
+
+    button {
+      padding: 10px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <video id="local-video" autoplay muted></video>
+  <video id="remote-video" autoplay></video>
+  <button id="start-call">Start Call</button>
+  <button id="end-call" disabled>End Call</button>
+
+  <script>
+    const localVideo = document.getElementById('local-video');
+    const remoteVideo = document.getElementById('remote-video');
+    const startCallButton = document.getElementById('start-call');
+    const endCallButton = document.getElementById('end-call');
+
+    let localStream;
+    let peerConnection;
+
+    startCallButton.addEventListener('click', startCall);
+    endCallButton.addEventListener('click', endCall);
+
+    async function startCall() {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+
+        const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        peerConnection = new RTCPeerConnection(configuration);
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        peerConnection.onicecandidate = handleICECandidateEvent;
+        peerConnection.ontrack = handleTrackEvent;
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        // Send the offer to the other user (via signaling server or other means)
+        sendOffer(offer);
+
+        startCallButton.disabled = true;
+        endCallButton.disabled = false;
+      } catch (error) {
+        console.error('Error starting call:', error);
+      }
+    }
+
+    function handleICECandidateEvent(event) {
+      if (event.candidate) {
+        // Send the candidate to the other user (via signaling server or other means)
+        sendICECandidate(event.candidate);
+      }
+    }
+
+    function handleTrackEvent(event) {
+      remoteVideo.srcObject = event.streams[0];
+    }
+
+    function sendOffer(offer) {
+      const offerData = {
+        type: 'offer',
+        sdp: offer.sdp,
+      };
+
+      // Replace this with your signaling code to send the offer to the other user
+      console.log('Send this offer to the other user:', offerData);
+      
+      // For simplicity, simulate receiving the offer immediately
+      receiveOffer(offerData);
+    }
+
+    function receiveOffer(offerData) {
+      // Simulate receiving the offer and create an answer
+      const answer = new RTCSessionDescription({ type: 'answer', sdp: offerData.sdp });
+      peerConnection.setRemoteDescription(answer);
+    }
+
+    function sendICECandidate(candidate) {
+      const candidateData = {
+        type: 'ice-candidate',
+        candidate: candidate,
+      };
+
+      // Replace this with your signaling code to send the candidate to the other user
+      console.log('Send this ICE candidate to the other user:', candidateData);
+      
+      // For simplicity, simulate receiving the ICE candidate immediately
+      receiveICECandidate(candidateData);
+    }
+
+    function receiveICECandidate(candidateData) {
+      // Simulate receiving the ICE candidate and add it to the peer connection
+      const candidate = new RTCIceCandidate(candidateData.candidate);
+      peerConnection.addIceCandidate(candidate);
+    }
+
+    function endCall() {
+      // Close the peer connection and release resources
+      peerConnection.close();
+      localVideo.srcObject = null;
+      remoteVideo.srcObject = null;
+
+      startCallButton.disabled = false;
+      endCallButton.disabled = true;
+    }
+  </script>
+</body>
+</html>
